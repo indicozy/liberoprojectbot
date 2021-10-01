@@ -1,0 +1,18 @@
+{
+    "des": {
+        "gnome": "good",
+        "plasma": "bad"
+    },
+    "distros": {
+        "ubuntu": "ez",
+        "arch": "not ez"
+    },
+    "content": {
+        "youtubers": "idk",
+        "instagram": "ikr"
+    },
+    "commands": {
+        "man": "man man man",
+        "cd": "cd"
+    }
+}
