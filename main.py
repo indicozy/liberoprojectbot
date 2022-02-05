@@ -13,16 +13,29 @@ DEPLOY_MODE = "work" #test or work
 TOKEN_FILE = "token_test.txt"
 if DEPLOY_MODE == "work":
     TOKEN_FILE = "token.txt"
-WIDTH = 1080
-HEIGHT = 1920
-BACKGROUND_COLOR = "NONE"
+
+# STORIES
+STORIES_WIDTH = 1080
+STORIES_HEIGHT = 1920
 SIZE=1.3
 BLUR=20
 GAMMA=1
-ENABLE_BLUR = True
 PADDING_X = 80
 PADDING_Y = 1000
 LOGONAME = "logo/logo_1.png"
+
+# MAGICk
+WIDTH = 1920
+HEIGHT = 1440
+LOGO_LOCATION = "logo/logo_img.png"
+LOGO_MAX_HEIGHT = 50
+LOGO_PADDING_X = 30
+LOGO_PADDING_Y = 30
+LOGO_MARGIN = 100
+BACKGROUND_COLOR = "#1e1e1e"
+FG_SIZE = 1
+ENABLE_BLUR = True
+
 
 
 
@@ -112,24 +125,101 @@ MENU_BUTTONS = [
 ]
 YES_NO_BUTTONS = [["Да", "Нет"]]
 
-def image_convert(image, title, subtitle):
+def admin_magick(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    text = update.message.text.split(" ")[1]
+    print(user.id)
+    if user.username not in ADMINS:
+        logger.info("NOT AUTHORIZED")
+        update.message.reply_text("NOT AUTHORIZED")
+        return
+
+    if text[0:5] != "https":
+        logger.info("WRONG LINK")
+        update.message.reply_text("WRONG LINK")
+        return
+    http = urllib3.PoolManager()
+    response = http.request('GET', text)
+    image = Image(blob=response.data)
 
     # Create canvas
     canvas = Image(width=WIDTH, height=HEIGHT, background=Color(BACKGROUND_COLOR))
     print("CANVAS SIZES ARE:", WIDTH, HEIGHT)
 
+    # Resize an image to FullHD 4x3
+    image_fg = image.clone()
+    print("IMAGE SIZES BEFORE:", int(image_fg.width), int(image_fg.height))
+    if image_fg.height / 3 * 4 > image_fg.width:
+        coef = HEIGHT / image_fg.height
+    else:
+        coef = WIDTH / image_fg.width
+    print("IMAGE SIZES AFTER:",int(image_fg.width * coef), int(image_fg.height * coef))
+    image_fg.resize(int(image_fg.width * coef), int(image_fg.height * coef))
+    image_fg.resize(int(image_fg.width * FG_SIZE), int(image_fg.height * FG_SIZE))
+
+    # make changes to main image
+    # image = image_fg
+
+    # add blur to background
     ## resize blur
     image_blur = image.clone()
     print("IMAGE SIZES BEFORE:", int(image_blur.width), int(image_blur.height))
-    if image_blur.height / HEIGHT * WIDTH > image_blur.width:
-        coef = WIDTH / image_blur.width * SIZE
+    if image_blur.height / 3 * 4 > image_blur.width:
+        coef = WIDTH / image_blur.width
     else:
-        coef = HEIGHT / image_blur.height * SIZE
+        coef = HEIGHT / image_blur.height
     print("IMAGE SIZES AFTER:",int(image_blur.width * coef), int(image_blur.height * coef))
     image_blur.resize(int(image_blur.width * coef), int(image_blur.height * coef))
 
     ## Crop blur
-    image_blur.crop(0, int((image_blur.height - HEIGHT)/2), width=WIDTH, height=HEIGHT)
+    if image_blur.height / 3 * 4 > image_blur.width:
+        image_blur.crop(0, int((image_blur.height - HEIGHT)/2), width=WIDTH, height=HEIGHT)
+    else:
+        image_blur.crop(int((image_blur.width - WIDTH)/2), 0, width=WIDTH, height=HEIGHT)
+        print("HEIGHT", int((image_blur.height - HEIGHT)/2) )
+    print("IMAGE SIZES AFTER:",int(image_blur.width), int(image_blur.height))
+
+    ## Add blur
+    image_blur.blur(sigma = 30)
+
+    # Add logo
+    logo = Image(filename = LOGO_LOCATION)
+    coef = LOGO_MAX_HEIGHT/logo.height
+    logo.resize(int(logo.width * coef), int(logo.height*coef))
+    print(logo.width, logo.height)
+    # logo.transparentize(0.3)
+    # logo.transparent_color(alpha = Color("NONE"))
+    logo.alpha = True
+
+    # add images to canvas
+    if ENABLE_BLUR:
+        canvas.composite(image_blur)
+    #     canvas.brightness_contrast(-20)
+    canvas.composite(image_fg, top=int((HEIGHT-image_fg.height)/2), left=int((WIDTH-image_fg.width)/2))
+    canvas.composite(logo, top=int(LOGO_PADDING_Y), left=int(LOGO_PADDING_X))
+    # return canvas
+    savename="edited/"+text.split("/")[-1]
+    canvas.save(filename=savename)
+    with open(savename, 'rb') as photo_file:
+        update.message.reply_photo(photo=photo_file)
+
+def image_convert(image, title, subtitle):
+    # Create canvas
+    canvas = Image(width=STORIES_WIDTH, height=STORIES_HEIGHT, background=Color("NONE"))
+    print("CANVAS SIZES ARE:", STORIES_WIDTH, STORIES_HEIGHT)
+
+    ## resize blur
+    image_blur = image.clone()
+    print("IMAGE SIZES BEFORE:", int(image_blur.width), int(image_blur.height))
+    if image_blur.height / STORIES_HEIGHT * STORIES_WIDTH > image_blur.width:
+        coef = STORIES_WIDTH / image_blur.width * SIZE
+    else:
+        coef = STORIES_HEIGHT / image_blur.height * SIZE
+    print("IMAGE SIZES AFTER:",int(image_blur.width * coef), int(image_blur.height * coef))
+    image_blur.resize(int(image_blur.width * coef), int(image_blur.height * coef))
+
+    ## Crop blur
+    image_blur.crop(0, int((image_blur.height - STORIES_HEIGHT)/2), width=STORIES_WIDTH, height=STORIES_HEIGHT)
     print("IMAGE SIZES AFTER:",int(image_blur.width), int(image_blur.height))
 
     ## Add blur
@@ -140,7 +230,7 @@ def image_convert(image, title, subtitle):
     image_logo = Image(filename=LOGONAME)
     coef = 200/image.height
     image_logo.resize(int(image_logo.width * coef), int(image_logo.height * coef))
-    image_tint=Image(width=WIDTH, height=HEIGHT, background=Color("black"))
+    image_tint=Image(width=STORIES_WIDTH, height=STORIES_HEIGHT, background=Color("black"))
     image_tint.transparentize(0.7)
     
     # add images to canvas
@@ -189,9 +279,12 @@ def admin_convert(update: Update, context: CallbackContext) -> None:
     print(user.id)
     if user.username not in ADMINS:
         logger.info("NOT AUTHORIZED")
+        update.message.reply_text("NOT AUTHORIZED")
         return
+
     if text[0:5] != "https":
         logger.info("WRONG LINK")
+        update.message.reply_text("WRONG LINK")
         return
     sys_args = sys.argv[1:]
     print(sys_args)
@@ -1429,6 +1522,7 @@ def main() -> None:
         # MessageHandler(Filters.regex('^(Перейти к чату)$') & Filters.chat_type.private, select_promo), # Посмотреть базы даннных
         CommandHandler('manadd', select_manadd, Filters.chat_type.private), # /info <distro>
         CommandHandler('convert', admin_convert, Filters.chat_type.private), # /info <distro>
+        CommandHandler('magick', admin_magick, Filters.chat_type.private), # /info <distro>
         CommandHandler('mandel', select_mandel, Filters.chat_type.private), # /info <distro>
         CommandHandler('manshow', select_manshow, Filters.chat_type.private), # /info <distro>
         CommandHandler('sendall', select_sendall, Filters.chat_type.private), # /info <distro>
