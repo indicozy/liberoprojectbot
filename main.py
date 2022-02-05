@@ -1336,10 +1336,6 @@ with open('info.json', 'r') as myfile:
     data=myfile.read()
     obj = json.loads(data)
 INFORMATIONS = obj
-#DES = obj["DES"]
-#DISTROS = obj["DISTROS"]
-#PROMOS = obj["PROMOS"]
-#LEVELS = obj["LEVELS"]
 
 INFORMATIONS = obj
 with open('levels.json', 'r') as myfile:
@@ -1357,7 +1353,5 @@ if __name__ == '__main__':
     db = Database()
     db.create_table()
     db.close()
-
-    # json_upsert("Doc", "nigger", "nibba", mode = "d")
 
     main()
