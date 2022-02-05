@@ -13,8 +13,27 @@ DEPLOY_MODE = "work" #test or work
 TOKEN_FILE = "token_test.txt"
 if DEPLOY_MODE == "work":
     TOKEN_FILE = "token.txt"
+WIDTH = 1080
+HEIGHT = 1920
+BACKGROUND_COLOR = "NONE"
+SIZE=1.3
+BLUR=20
+GAMMA=1
+ENABLE_BLUR = True
+PADDING_X = 80
+PADDING_Y = 1000
+LOGONAME = "logo/logo_1.png"
 
 
+
+import sys
+from wand.image import Image
+from wand.color import Color
+from wand.drawing import Drawing
+from io import StringIO
+from os import listdir
+from bs4 import BeautifulSoup
+import urllib3
 import random
 import re
 import logging
@@ -92,6 +111,115 @@ MENU_BUTTONS = [
     ['Поддержать', 'Поделиться']
 ]
 YES_NO_BUTTONS = [["Да", "Нет"]]
+
+def image_convert(image, title, subtitle):
+
+    # Create canvas
+    canvas = Image(width=WIDTH, height=HEIGHT, background=Color(BACKGROUND_COLOR))
+    print("CANVAS SIZES ARE:", WIDTH, HEIGHT)
+
+    ## resize blur
+    image_blur = image.clone()
+    print("IMAGE SIZES BEFORE:", int(image_blur.width), int(image_blur.height))
+    if image_blur.height / HEIGHT * WIDTH > image_blur.width:
+        coef = WIDTH / image_blur.width * SIZE
+    else:
+        coef = HEIGHT / image_blur.height * SIZE
+    print("IMAGE SIZES AFTER:",int(image_blur.width * coef), int(image_blur.height * coef))
+    image_blur.resize(int(image_blur.width * coef), int(image_blur.height * coef))
+
+    ## Crop blur
+    image_blur.crop(0, int((image_blur.height - HEIGHT)/2), width=WIDTH, height=HEIGHT)
+    print("IMAGE SIZES AFTER:",int(image_blur.width), int(image_blur.height))
+
+    ## Add blur
+    image_blur.blur(sigma = BLUR)
+    image_blur.level(gamma=GAMMA)
+
+    # add logo
+    image_logo = Image(filename=LOGONAME)
+    coef = 200/image.height
+    image_logo.resize(int(image_logo.width * coef), int(image_logo.height * coef))
+    image_tint=Image(width=WIDTH, height=HEIGHT, background=Color("black"))
+    image_tint.transparentize(0.7)
+    
+    # add images to canvas
+    canvas.composite(image_blur)
+    canvas.composite(image_tint)
+    canvas.composite(image_logo, left=int(PADDING_X), top=int(PADDING_Y))
+    
+    
+    title_pieces = [""]
+    for i in title.split(" "):
+        if len(title_pieces[-1]) + len(i) < 30:
+            title_pieces[-1] = title_pieces[-1] + " " + i
+        elif len(i) >= 30:
+            title_pieces.append(i)
+        else:
+            title_pieces.append("")
+
+    padding_Y_total = PADDING_Y + image_logo.height + 75
+
+    for i in title_pieces:
+        with Drawing() as draw:
+            draw.font = 'assets/Raleway-Thin.ttf'
+            draw.fill_color=Color('white')
+            draw.text_alignment= 'left'
+            canvas.font_size=64
+            draw.text(PADDING_X - 15, padding_Y_total, i)
+            # print(draw.get_font_metrics(img,quote))
+            draw(canvas)
+            padding_Y_total+= 75
+
+    with Drawing() as draw:
+        draw.font = 'assets/Raleway-Thin.ttf'
+        draw.fill_color=Color('white')
+        draw.text_alignment= 'left'
+        canvas.font_size=28
+        draw.text(PADDING_X, padding_Y_total - 10, subtitle)
+        # print(draw.get_font_metrics(img,quote))
+        draw(canvas)
+        padding_Y_total+= 75
+
+    return canvas
+
+def admin_convert(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    text = update.message.text.split(" ")[1]
+    print(user.id)
+    if user.username not in ADMINS:
+        logger.info("NOT AUTHORIZED")
+        return
+    if text[0:5] != "https":
+        logger.info("WRONG LINK")
+        return
+    sys_args = sys.argv[1:]
+    print(sys_args)
+
+    http = urllib3.PoolManager()
+
+    # bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="From Telegram Bot")
+
+    link = text
+    response = http.request('GET', link)
+    response_html = response.data.decode('utf-8')
+    soup = BeautifulSoup(response_html, "html.parser")
+    image_url = soup.find("img", itemprop="image")["src"].strip()
+    title = soup.find("h2", itemprop="headline").getText().strip().title()
+    subtitle = soup.find("ul", {"class": "meta ospm-default clr"}).getText().split("\n")[3].split(":")[1].strip()
+
+    image_data = http.request('GET', image_url).data
+
+    new_image = image_convert(Image(blob=image_data), title, subtitle)
+    filename = link.split("/")[-1]
+    savename = "edited/"+title[0:10]+".jpg"
+    new_image.save(filename=savename)
+    response.close()
+
+    print(title, image_url, subtitle)
+    print("SAVED AS", title[0:10])
+    with open(savename, 'rb') as photo_file:
+        update.message.reply_photo(photo=photo_file)
 
 # CLIENT CLASS
 class Client:
@@ -1300,6 +1428,7 @@ def main() -> None:
     admin_handlers = [
         # MessageHandler(Filters.regex('^(Перейти к чату)$') & Filters.chat_type.private, select_promo), # Посмотреть базы даннных
         CommandHandler('manadd', select_manadd, Filters.chat_type.private), # /info <distro>
+        CommandHandler('convert', admin_convert, Filters.chat_type.private), # /info <distro>
         CommandHandler('mandel', select_mandel, Filters.chat_type.private), # /info <distro>
         CommandHandler('manshow', select_manshow, Filters.chat_type.private), # /info <distro>
         CommandHandler('sendall', select_sendall, Filters.chat_type.private), # /info <distro>
