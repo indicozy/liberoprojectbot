@@ -200,23 +200,19 @@ def rss_check(context):
             WHERE id = {output[0]}
         """, (time.time(),))
 
+        savename = convert_stories(output[6])
 
-def admin_magick(update: Update, context: CallbackContext) -> None:
-    user = update.message.from_user
-    text = update.message.text.split(" ")[1]
-    print(user.id)
-    if user.username not in ADMINS:
-        logger.info("NOT AUTHORIZED")
-        update.message.reply_text("NOT AUTHORIZED")
-        return
+        with open(savename, 'rb') as photo_file:
+            bot.send_photo(chat_id =ADMINS[0], photo=photo_file)
 
-    if text[0:5] != "https":
-        logger.info("WRONG LINK")
-        update.message.reply_text("WRONG LINK")
-        return
-    http = urllib3.PoolManager()
-    response = http.request('GET', text)
-    image = Image(blob=response.data)
+
+def convert_magick(text):
+    if text[:4]=="http":
+        http = urllib3.PoolManager()
+        response = http.request('GET', text)
+        image = Image(blob=response.data)
+    else:
+        image = Image(filename=text)
 
     # Create canvas
     canvas = Image(width=WIDTH, height=HEIGHT, background=Color(BACKGROUND_COLOR))
@@ -276,6 +272,37 @@ def admin_magick(update: Update, context: CallbackContext) -> None:
     # return canvas
     savename="edited/"+text.split("/")[-1]
     canvas.save(filename=savename)
+    return savename
+
+def admin_magick(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    text = update.message.text
+    print(user.id)
+    if user.username not in ADMINS:
+        logger.info("NOT AUTHORIZED")
+        update.message.reply_text("NOT AUTHORIZED")
+        return
+    print(text)
+
+    if len(text.split(" ")) > 1:
+        if text.split(" ")[1][0:5] != "https":
+            logger.info("WRONG LINK")
+            update.message.reply_text("WRONG LINK")
+            return
+        savename = convert_magick(text.split(" ")[1])
+    if update.message.reply_to_message:
+        # try:
+            file = context.bot.getFile(update.message.reply_to_message.photo[-1].file_id)
+            file_savename = f"to_edit/{user.id}_{time.time()}.jpg"
+            file.download(file_savename)
+            savename = convert_magick(file_savename)
+        # except:
+        #     update.message.reply_text("It's not a photo")
+        #     return
+    else:
+        update.message.reply_text("Send a reply ot photo or URL")
+        return
+
     with open(savename, 'rb') as photo_file:
         update.message.reply_photo(photo=photo_file)
 
@@ -349,22 +376,7 @@ def image_convert(image, title, subtitle):
 
     return canvas
 
-def admin_convert(update: Update, context: CallbackContext) -> None:
-    user = update.message.from_user
-    text = update.message.text.split(" ")[1]
-    print(user.id)
-    if user.username not in ADMINS:
-        logger.info("NOT AUTHORIZED")
-        update.message.reply_text("NOT AUTHORIZED")
-        return
-
-    if text[0:5] != "https":
-        logger.info("WRONG LINK")
-        update.message.reply_text("WRONG LINK")
-        return
-    sys_args = sys.argv[1:]
-    print(sys_args)
-
+def convert_stories(text):
     http = urllib3.PoolManager()
 
     # bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="From Telegram Bot")
@@ -387,6 +399,28 @@ def admin_convert(update: Update, context: CallbackContext) -> None:
 
     print(title, image_url, subtitle)
     print("SAVED AS", title[0:10])
+    return savename
+
+
+def admin_stories(update: Update, context: CallbackContext) -> None:
+    user = update.message.from_user
+    text = update.message.text.split(" ")[1]
+    print(user.id)
+    if user.username not in ADMINS:
+        logger.info("NOT AUTHORIZED")
+        update.message.reply_text("NOT AUTHORIZED")
+        return
+
+    if text[0:5] != "https":
+        logger.info("WRONG LINK")
+        update.message.reply_text("WRONG LINK")
+        return
+
+    sys_args = sys.argv[1:]
+    savename = convert_stories(text)
+        
+
+    print(savename)
     with open(savename, 'rb') as photo_file:
         update.message.reply_photo(photo=photo_file)
 
@@ -1613,7 +1647,7 @@ def main() -> None:
     admin_handlers = [
         # MessageHandler(Filters.regex('^(Перейти к чату)$') & Filters.chat_type.private, select_promo), # Посмотреть базы даннных
         CommandHandler('manadd', select_manadd, Filters.chat_type.private), # /info <distro>
-        CommandHandler('convert', admin_convert, Filters.chat_type.private), # /info <distro>
+        CommandHandler('stories', admin_stories, Filters.chat_type.private), # /info <distro>
         CommandHandler('magick', admin_magick, Filters.chat_type.private), # /info <distro>
         CommandHandler('mandel', select_mandel, Filters.chat_type.private), # /info <distro>
         CommandHandler('manshow', select_manshow, Filters.chat_type.private), # /info <distro>
