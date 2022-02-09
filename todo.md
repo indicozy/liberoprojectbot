@@ -1,0 +1,2 @@
+- track posts by their post id
+- rewrite and modulize all the code

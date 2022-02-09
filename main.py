@@ -1639,7 +1639,7 @@ def main() -> None:
     updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
     # JOBS
-    updater.job_queue.run_custom(rss_check, {"trigger": 'interval', "hours": 3, }, context=updater, name="rss_check")
+    updater.job_queue.run_custom(rss_check, {"trigger": 'interval', "hours": 1, }, context=updater, name="rss_check")
     # updater.job_queue.run_once(rss_check, 3, context=updater, name="rss_check")
     updater.idle()
 
