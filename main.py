@@ -36,9 +36,6 @@ BACKGROUND_COLOR = "#1e1e1e"
 FG_SIZE = 1
 ENABLE_BLUR = True
 
-
-
-
 import sys
 from wand.image import Image
 from wand.color import Color
@@ -87,6 +84,7 @@ wikipedia.set_lang("ru")
 
 import emoji
 import json
+import feedparser
 
 # Enable logging
 logging.basicConfig(
@@ -124,6 +122,84 @@ MENU_BUTTONS = [
     ['Поддержать', 'Поделиться']
 ]
 YES_NO_BUTTONS = [["Да", "Нет"]]
+
+def get_rss_list():
+    NewsFeed = feedparser.parse("https://liberoproject.kz/feed/")
+    news = []
+# ['title', 'title_detail', 'links', 'link', 'comments', 'authors', 'author', 'author_detail', 'published', 'published_parsed', 'tags', 'id', 'guidislink', 'summary', 'summary_detail', 'content', 'wfw_commentrss', 'slash_comments']
+    for i in NewsFeed.entries:
+        soup = BeautifulSoup(i["summary"], 'html.parser')
+        thumbnail = soup.find("img", {"class": "attachment-post-thumbnail"})
+        if thumbnail:
+            thumbnail = thumbnail["src"]
+
+        images = [x["src"] for x in soup.find_all("img")]
+        summary = []
+        texts = soup.find_all("p")
+        for j in texts:
+            text = j.get_text().strip()
+            if text:
+                summary.append(text)
+        summary = "\n".join(summary[:-1])
+        total = {"link": i["link"],
+                "title": i["title"],
+                "author": i["author"],
+                "published": i["published"],
+                "published_parsed": i["published_parsed"],
+                "tags": i["tags"],
+                "thumbnail": thumbnail,
+                "images": images,
+                "summary": summary,
+                }
+        news.append(total)
+    return news
+
+def post_news(news, bot):
+    news_json = {
+            "id": news[0],
+            "link": news[1],
+            "title": news[2],
+            "author": news[3],
+            "published_at": news[4],
+            "tags": news[5],
+            "thumbnail": news[6],
+            "images": news[6],
+            "summary": news[8],
+            "is_posted": news[9],
+            "created_at": news[10],
+            "posted_at": news[11]
+            }
+    news_json["tags"] = " ".join([ "#"+x for x in news_json["tags"].split(";")])
+    print(news_json["summary"])
+
+    bot.send_message(chat_id=CHANNEL, text=news_json["title"]+ "\n\n" + "\n".join(news_json["summary"].split("\n")[:1]) + "\n" + str(news_json["tags"]) + "\n\n"+news_json["link"])
+
+def rss_check(context):
+    db=Database()
+    news = get_rss_list()
+    for i in reversed(news):
+        db.execute(f"SELECT * FROM rss_news WHERE link = \"{i['link']}\"")
+        output = db.fetchone()
+        if output:
+            continue
+        print((i["link"], i["title"], i["author"], time.mktime(i["published_parsed"]), ";".join([x["term"] for x in i["tags"]]), i["thumbnail"], ";".join(i["images"]), i["summary"], 0, time.time(), None))
+        db.executemany("""INSERT INTO rss_news (link, title, author, published_at, tags, thumbnail, images, summary, is_posted, created_at, posted_at )
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?)""", 
+                      (i["link"], i["title"], i["author"], time.mktime(i["published_parsed"]), ";".join([x["term"] for x in i["tags"]]), i["thumbnail"], ";".join(i["images"]), i["summary"], 0, time.time(), None) 
+                       )
+
+    # Send news
+    db.execute(f"SELECT * FROM rss_news WHERE is_posted = 0 ORDER BY id ASC")
+    output = db.fetchone()
+    if output:
+        post_news(output, context.bot)
+
+        db.executemany(f"""UPDATE rss_news SET
+            is_posted = 1,
+            posted_at = ?
+            WHERE id = {output[0]}
+        """, (time.time(),))
+
 
 def admin_magick(update: Update, context: CallbackContext) -> None:
     user = update.message.from_user
@@ -386,6 +462,22 @@ class Database(object):
                         left_last integer,
                         is_admin integer
                        )""")
+
+        self.c.execute("""CREATE TABLE IF NOT EXISTS rss_news (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        link TEXT NOT NULL UNIQUE,
+                        title TEXT,
+                        author TEXT,
+                        published_at INTEGER,
+                        tags TEXT,
+                        thumbnail TEXT,
+                        images TEXT,
+                        summary TEXT,
+                        is_posted INTEGER,
+                        created_at INTEGER,
+                        posted_at INTEGER
+                       )""")
+
         self.commit()
 
     def commit(self):
@@ -1545,6 +1637,10 @@ def main() -> None:
     dispatcher.add_handler(default_one)
 
     updater.start_polling(allowed_updates=Update.ALL_TYPES)
+
+    # JOBS
+    updater.job_queue.run_custom(rss_check, {"trigger": 'interval', "hours": 3, }, context=updater, name="rss_check")
+    # updater.job_queue.run_once(rss_check, 3, context=updater, name="rss_check")
     updater.idle()
 
 # get tokens
@@ -1552,6 +1648,7 @@ with open (TOKEN_FILE, "r") as myfile:
     # FUCK YOU HACKEERS
     TOKEN=myfile.readline().replace('\n', '')
     CHATS = json.loads(myfile.readline().replace('\n', ''))
+    CHANNEL = int(myfile.readline().replace('\n', ''))
     ADMINS = json.loads(myfile.readline().replace('\n', ''))
 
 # parse json file for config
