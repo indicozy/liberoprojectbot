@@ -172,7 +172,7 @@ def post_news(news, bot):
     news_json["tags"] = " ".join([ "#"+x for x in news_json["tags"].split(";")])
     print(news_json["summary"])
 
-    bot.send_message(chat_id=CHANNEL, text=news_json["title"]+ "\n\n" + "\n".join(news_json["summary"].split("\n")[:1]) + "\n" + str(news_json["tags"]) + "\n\n"+news_json["link"])
+    bot.send_message(chat_username=CHANNEL, text=news_json["title"]+ "\n\n" + "\n".join(news_json["summary"].split("\n")[:1]) + "\n" + str(news_json["tags"]) + "\n\n"+news_json["link"])
 
 def rss_check(context):
     db=Database()
