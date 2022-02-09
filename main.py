@@ -290,7 +290,7 @@ def admin_magick(update: Update, context: CallbackContext) -> None:
             update.message.reply_text("WRONG LINK")
             return
         savename = convert_magick(text.split(" ")[1])
-    if update.message.reply_to_message:
+    elif update.message.reply_to_message:
         # try:
             file = context.bot.getFile(update.message.reply_to_message.photo[-1].file_id)
             file_savename = f"to_edit/{user.id}_{time.time()}.jpg"
