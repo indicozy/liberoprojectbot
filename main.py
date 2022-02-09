@@ -1,4 +1,5 @@
 # python-telegram-bot for LiberoChat
+# -*- coding: utf-8 -*-
 # version=v0.1.0
 
 ## TO-DO
