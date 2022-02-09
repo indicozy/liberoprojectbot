@@ -200,10 +200,10 @@ def rss_check(context):
             WHERE id = {output[0]}
         """, (time.time(),))
 
-        savename = convert_stories(output[6])
+        savename = convert_stories(output[1])
 
         with open(savename, 'rb') as photo_file:
-            bot.send_photo(chat_id =ADMINS[0], photo=photo_file)
+            context.bot.send_photo(chat_id = 1768207849, photo=photo_file)
 
 
 def convert_magick(text):
@@ -376,12 +376,12 @@ def image_convert(image, title, subtitle):
 
     return canvas
 
-def convert_stories(text):
+def convert_stories(link):
     http = urllib3.PoolManager()
 
     # bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="From Telegram Bot")
 
-    link = text
+    print(link)
     response = http.request('GET', link)
     response_html = response.data.decode('utf-8')
     soup = BeautifulSoup(response_html, "html.parser")
