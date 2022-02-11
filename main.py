@@ -201,10 +201,11 @@ def rss_check(context):
             WHERE id = {output[0]}
         """, (time.time(),))
 
-        savename = convert_stories(output[1])
-
-        with open(savename, 'rb') as photo_file:
-            context.bot.send_photo(chat_id = 1768207849, photo=photo_file)
+        # Send Stories
+        # savename = convert_stories(output[1])
+        #
+        # with open(savename, 'rb') as photo_file:
+        #     context.bot.send_photo(chat_id = 1768207849, photo=photo_file)
 
 
 def convert_magick(text):
@@ -1685,6 +1686,7 @@ with open (TOKEN_FILE, "r") as myfile:
     CHATS = json.loads(myfile.readline().replace('\n', ''))
     CHANNEL = str(myfile.readline().replace('\n', ''))
     ADMINS = json.loads(myfile.readline().replace('\n', ''))
+    YOUTUBE_API = str(myfile.readline().replace('\n', ''))
 
 # parse json file for config
 with open('info.json', 'r') as myfile:
