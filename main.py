@@ -27,7 +27,7 @@ LOGONAME = "logo/logo_1.png"
 
 # MAGICk
 WIDTH = 1920
-HEIGHT = 1440
+HEIGHT = 1080
 LOGO_LOCATION = "logo/logo_img.png"
 LOGO_MAX_HEIGHT = 50
 LOGO_PADDING_X = 30
