@@ -1440,6 +1440,10 @@ def deep_linked_level_2(update: Update, context: CallbackContext) -> None:
             reply_markup=ReplyKeyboardMarkup(
                 MENU_BUTTONS, one_time_keyboard=True))
 
+def select_chat_id(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(f"""ID чата: {update.effective_chat.id}""")
+    return
+
 def select_neofetch_chat(update: Update, context: CallbackContext) -> None:
     """Reached through the SO_COOL payload"""
     user = update.message.from_user
@@ -1600,6 +1604,7 @@ def main() -> None:
         # MessageHandler(Filters.regex('^([Ss]udo\ setkarma).*'), set_karma, Filters.chat_type.groups), # /info <distro>
         CommandHandler('neofetch', select_neofetch_chat, Filters.chat_type.groups), # /info <distro>
         CommandHandler('me', select_neofetch_chat, Filters.chat_type.groups), # /info <distro>
+        CommandHandler('id', select_chat_id, Filters.chat_type.groups), # /info <distro>
         MessageHandler(Filters.regex('.*([сС]пасибо|[Пп]асеба|[рР]ахмет|[бБ]лагодарю|[оО]т\ души|[👍❤️🙏]|[tT]hanks|[tT]hank you|[рР]аха).*') & Filters.chat_type.groups, give_karma) #Карма
     ]
 
